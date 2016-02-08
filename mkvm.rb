@@ -13,17 +13,32 @@
 #Requirements
 require 'yaml'
 require 'optparse'
-require 'fog'
+#require 'fog'
 require 'pp'
 
 
 default_options = {
-  :vmware_host => 'vmware',
-  :vmware_user => 'vmware',
-  :vmware_passwd => 'vmware',
+  #:vmware_host => 'vmware',
+  #:vmware_user => 'vmware',
+  #:vmware_passwd => 'vmware',
   :verbose => false,
-  :secure => false,
+  :arch => 'x86_64',
+  :host_group => 'default',
 }
+
+def get_os_list()
+  os_list = YAML.load(`hammer --output yaml os list`)
+  return os_list
+end
+
+def get_media_list()
+  media_list = YAML.load(`hammer --output yaml medium list`)
+  return media_list
+end
+
+def get_p_table_list()
+  p_table_list = YAML.load(`hammer --output yaml partition-table list`)
+end
 
 options = default_options
 OptionParser.new do |opts|
@@ -31,8 +46,8 @@ OptionParser.new do |opts|
   opts.on("-v", "--verbose", "Run verbosely") do
     options[:verbose] = true
   end
-  opts.on("-h", "--host VMWARE_HOST", "VMWware Host") do |host|
-    options[:vmware_host] = host
+  opts.on("-g", "--group host_group", "Host Group") do |group|
+    options[:houst_group] = group
   end
   opts.on("-u", "--user VMWARE_USER", "VMWware User") do |user|
     options[:vmware_user] = user
@@ -58,29 +73,5 @@ if options[:verbose] == true
   pp options
 end
 
-
-credentials = {
-    :provider	=> "vsphere",
-    :vsphere_username	=> options[:vmware_user],
-    :vsphere_password	=> options[:vmware_passwd],
-    :vsphere_server	=> options[:vmware_host],
-    :vsphere_ssl	=> options[:secure],
-    :vsphere_expected_pubkey_hash => options[:vmware_pubkey],
-}
-connection = Fog::Compute.new(credentials)
-folders = connection.list_folders(datacenter: options[:vmware_datacenter], path: options[:vmware_folder])
-clusters = connection.list_clusters(datacenter: options[:vmware_datacenter])
-networks = connection.list_networks(datacenter: options[:vmware_datacenter])
-datastores = connection.list_datastores(datacenter: options[:vmware_datacenter])
-
-#pp folders
-#pp clusters
-#pp networks
-#pp datastores
-folders.each do |folder|
-  if  folder[:name] == options[:vmware_folder]
-    next
-  elsif folder[:parent] == options[:vmware_folder]
-    puts "#{folder[:name]}"
-  end
-end
+os_list=get_media_list
+pp os_list
