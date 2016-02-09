@@ -16,101 +16,106 @@ require 'optparse'
 #require 'fog'
 require 'pp'
 
+#Fetch foreman data
+def get_foreman_list(debug,thing)
+  if debug == true
+    hammer_cmd = "hammer --output yaml --debug #{thing} list"
+  else
+    hammer_cmd = "hammer --output yaml #{thing} list"
+  end
+  list = YAML.load(`#{hammer_cmd}`)
+  return list
+end
 
+#prompt/menu
+def prompt_menu(list,fields,desc)
+  puts "Please select a(n) #{desc}:"
+  list.each do |i|
+    line = ""
+    fields.each do |f|
+      if f == 'Id'
+        line = line + "#{i[f]}) "
+      else
+        line = line + "#{i[f]} "
+      end
+    end
+    puts line
+  end
+  puts "#{desc} #:"
+  selection = gets.strip.to_i
+  return selection
+end
+
+def pick_datastore(datastore_in)
+  #We CAN pass datastore as a string, or array of strings.
+  # If Array, randomly pick one. else just return the string
+  if datastore_in.kind_of?(Array)
+    datastore=datastore_in.sample
+  else
+    datastore=datastore_in
+  end
+  return datastore
+end
+
+#Defaults for options.
 default_options = {
-  #:vmware_host => 'vmware',
-  #:vmware_user => 'vmware',
-  #:vmware_passwd => 'vmware',
-  :verbose => false,
-  :arch => 'x86_64',
-  :host_group => nil,
-  :media => nil,
-  :os => nil,
-  :ptable => nil,
-}
-#Fetch hostgroups
-def get_hg_list()
-  hg_list = YAML.load(`hammer --output yaml hostgroup list`)
-  return hg_list
-end
-#prompt for HG w/ menu
-def prompt_hg(hg_list)
-  puts "Select an Host Group (#):"
-  hg_list.each do |hg|
-    puts "#{hg['Id']}) #{hg['Title']}"
-  end
-  puts "Host Group #:"
-  hg_id=gets.strip
-  return hg_id.to_i
-end
-#fetch os
-def get_os_list()
-  os_list = YAML.load(`hammer --output yaml os list`)
-  return os_list
-end
-#Prompt for OS with a menu
-def prompt_os(os_list)
-  puts "Select an Operating System (#):"
-  os_list.each do |o|
-    puts "#{o['Id']}) #{o['Title']}"
-  end
-  puts "Operating System #:"
-  os_id=gets.strip
-  return os_id.to_i
-end
-#fetch media
-def get_media_list()
-  media_list = YAML.load(`hammer --output yaml medium list`)
-  return media_list
-end
-#Prompt for media list
-def prompt_media(media_list)
-  puts "Select Installation Media (#):"
-  media_list.each do |m|
-    puts "#{m['Id']}) #{m['Name']} (#{m['Path']})"
-  end
-  puts "Installation Media #:"
-  m_id=gets.strip
-  return m_id.to_i
-end
+  :verbose => false, # -v
+  :debug => false, #-d/--debug
+  :arch => 'x86_64', # -a
+  :host_group => nil, #-g
+  :media => nil, #-m
+  :os => nil, #-o
+  :ptable => nil, #-p
+  :compute_resource => nil, #-r
+  :cpus => 1, # -x
+  :memory => 512, # -q
+  :managed => false, #-z
+  :guest_type => nil, # -t
+  :path => nil, # -e
+  :cluster => nil, #-b
+  :nic_type => 'VirtualE1000', #-i
+  :nic_network => nil, #-l
+  :nic_name => nil, #-u
+  :volume_datastore => nil, #-w
+  :volume_size => nil #-s
 
-#fetch p tables
-def get_p_table_list()
-  p_table_list = YAML.load(`hammer --output yaml partition-table list`)
-end
-#prompt for ptable
-def prompt_ptable(pt_list)
-  puts "Select a Partition Table (#):"
-  pt_list.each do |pt|
-    puts "#{pt['Id']}) #{pt['Name']} (#{pt['OS Family']})"
-  end
-  puts "Partition Table #:"
-  pt_id=gets.strip
-  return pt_id.to_i
-end
+}
 
 #Option Parsing
 options = default_options
 OptionParser.new do |opts|
   opts.banner = "Usage: mkvm.rb [options]"
-  opts.on("-v", "--verbose", "Run verbosely") do
-    options[:verbose] = true
-  end
-  opts.on("-g", "--group=host_group",Integer, "Host Group") do |group|
-    options[:host_group] = group.to_i
-  end
-  opts.on("-o", "--os=os-id", Integer, "Operating System") do |os|
-    options[:os] = os.to_i
-  end
-  opts.on("-m", "--media=media-id",Integer, "Installation Media") do |media|
-    options[:media] = media.to_i
-  end
-  opts.on("-p", "--ptable=partition-table-id",Integer, "Partition Table") do |p|
-    options[:ptable] = p.to_i
+  opts.on("-a", "--arch",String, "Architecture") do |arch|
+    options[:arch] = arch
   end
   opts.on("-c", "--configfile PATH", String, "Set config file") do |path|
     options.merge!(Hash[YAML::load(open(path)).map { |k, v| [k.to_sym, v] }])
   end
+  opts.on("-d", "--debug", "Pass --debug to all hammer commands") do
+    options[:debug] = true
+  end
+  opts.on("-e", "--path",String, "Folder Path for VM") do |path|
+    options[:path] = path
+  end
+  opts.on("-g", "--group=host_group",Integer, "Host GroupID ") do |group|
+    options[:host_group] = group.to_i
+  end
+  opts.on("-m", "--media",Integer, "Installation MediaID ") do |media|
+    options[:media] = media.to_i
+  end
+  opts.on("-o", "--os", Integer, "Operating System ID") do |os|
+    options[:os] = os.to_i
+  end
+  opts.on("-p", "--ptable",Integer, "Partition Table ID") do |ptable|
+    options[:ptable] = p.to_i
+  end
+  opts.on("-r", "--compute-resource",Integer, "Compute Resource ID") do |r|
+    options[:compute] = r.to_i
+  end
+  opts.on("-v", "--verbose", "Run verbosely") do
+    options[:verbose] = true
+  end
+
 end.parse!
 
 if options[:verbose] == true
@@ -119,24 +124,30 @@ end
 
 #get info to check/prompt if needed
 p "Getting Foreman info"
-os_list  = get_os_list()
-media_list = get_media_list()
-p_table_list = get_p_table_list()
-hg_list = get_hg_list()
+os_list = get_foreman_list(options[:debug],"os")
+media_list = get_foreman_list(options[:debug],"medium")
+p_table_list= get_foreman_list(options[:debug],"partition-table")
+hg_list=get_foreman_list(options[:debug],"hostgroup")
+cr_list=get_foreman_list(options[:debug],"compute-resource")
 
 #Check empty options and give prompt/menu
 if options[:os] == nil
-  options[:os]=prompt_os(os_list)
+  options[:os] = prompt_menu(os_list,['Id','Title'],'Operating System')
 end
 if options[:host_group] == nil
-  options[:host_group]=prompt_hg(hg_list)
+  options[:host_group]=prompt_menu(hg_list,['Id','Title'],'Host Group')
 end
 if options[:media] == nil
-  options[:media]=prompt_media(media_list)
+  options[:media]=prompt_menu(media_list,['Id','Name', 'Path'],'Operating System')
 end
 if options[:ptable] == nil
-  options[:ptable]=prompt_ptable(p_table_list)
+  options[:ptable]=prompt_menu(p_table_list,['Id','Name', 'OS Family'],'Partition Table')
 end
+if options[:compute_resource] == nil
+  options[:compute_resource]=prompt_menu(cr_list,['Id','Name','Provider'],'Compute Resource')
+end
+
+
 #Check options exist in Foreman
 if os_list.select { |o| o['Id'] ==  options[:os]} == []
   abort "I'm sorry, the OS id #{options[:os]} does not exist in foreman, exiting."
@@ -153,3 +164,16 @@ end
 if p_table_list.select { |p| p['Id'] ==  options[:ptable]} == []
   abort "I'm sorry, the Partition Table id #{options[:os]} does not exist in foreman, exiting."
 end
+#options[:compute_resource]
+if cr_list.select { |c| c['Id'] ==  options[:compute_resource]} == []
+  abort "I'm sorry, the compute_resource id #{options[:os]} does not exist in foreman, exiting."
+end
+
+#Choose a data store from the possible list.
+options[:volume_datastore] = pick_datastore(options[:volume_datastore])
+pp options[:volume_datastore]
+
+
+
+
+#hammer -d host create --architecture x86_64 --medium-id 8 --partition-table-id 55 --name mn174-test --hostgroup-id 1 --compute-resource-id 1 --compute-attributes cpus=1,memory_mb=512,cluster='MED RC Cluster 01',path='/Datacenters/HMSDATACENTER/vm/RC VMs (RC Support)/Dev' --interface=compute_type='VirtualE1000',compute_network='VLAN64',name=eth0,primary=true,identifier=eth0,managed=false,provision=true --volume datastore=RC-SANLUN01R6TK-INFINI,size=10,name=mn174-test
