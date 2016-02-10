@@ -1,6 +1,0 @@
----
-:foreman:
-  :enable_module: true
-  :host: 'http://192.168.20.10/'
-  :username: 'admin'
-#  :password: 'foreman'
